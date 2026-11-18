@@ -1,41 +1,63 @@
-# Forex Command
+# RBF — Ranging Bull Financial
+## Trade Intelligence & Performance Analytics · Version 1.3
 
-A standalone GitHub Pages forex dashboard for EUR/USD, USD/JPY and USD/CAD.
+A free, installable web app for recording trades and analyzing performance by indicator/strategy, currency pair, timeframe, and market condition.
 
-## Features
-- Session status clocks for Tokyo, London and New York (New York time).
-- Previous completed daily candle high, low and midpoint.
-- Multi-timeframe EMA trend assessment (1D, 4H, 1H, 15M, 5M).
-- Conditional setup references based on 1H/15M agreement and 5M volatility.
-- Economic calendar link and pre-news caution reminder.
-- PWA install support.
+### Included in version 1
+- Manual trade entry and editing
+- Optional **Indicator / Strategy Used** field
+- Dashboard: net P&L, win rate, total/closed trades, profit factor, average win and average loss
+- Strategy scorecard: trade count, wins, win rate, net P&L, average result per closed trade
+- Filters for date range, pair, strategy, market condition, and result
+- Trade notes and review fields
+- CSV import and export, including OANDA transaction-history exports (automatically pairs opening and closing fills)
+- Local browser storage
+- Installable PWA shell and basic offline access
 
-## Deploy
-1. Create a new GitHub repository named `forex-command`.
-2. Upload all files in this folder to the repository root.
-3. In Settings > Pages, deploy from the `main` branch and `/ (root)`.
-4. Open the published URL.
+### Important notes
+- Trade records are saved in the browser on the device where they are entered. This version has no account, cloud sync, or automatic backup.
+- Export your CSV regularly. Clearing browser data can erase locally stored trades.
+- OANDA transaction-history CSV imports are recognized by their transaction columns. RBF filters to actual order fills, matches opening and closing fills by instrument and direction using FIFO, calculates realized result from PL plus financing, commission, and conversion fee, and keeps unmatched opening quantities as Open positions. Review imported records for accuracy. Imported trades have no strategy label because OANDA's transaction export does not identify which of your custom indicators generated a trade.
+- Enter actual realized P&L. RBF intentionally does not estimate Forex P&L from entry/exit prices and lot size because pip value varies by instrument and account currency.
+- The app does not connect to OANDA or TradingView and does not place trades.
+- No closed-app push alerts are included.
 
-## Market data
-This version uses the Twelve Data time-series endpoint. Create an API key at https://twelvedata.com/ and enter it in the dashboard. The key is saved in this browser's localStorage. This is suitable for a private personal prototype, but it is not secure for a public website because browser users can inspect requests and local storage. For a production/public deployment, proxy requests through a server-side service and store the key in its secrets manager.
+## Publish free with GitHub Pages
+1. Create a GitHub account if needed.
+2. Create a new repository named `rbf-trade-intelligence`.
+3. Upload the contents of this ZIP (the files themselves, not the containing folder) to the repository root.
+4. In the repository, open **Settings → Pages**.
+5. Under **Build and deployment**, choose **Deploy from a branch**, select `main` and `/ (root)`, then Save.
+6. Wait for GitHub Pages to publish. The URL will look like `https://YOUR-USERNAME.github.io/rbf-trade-intelligence/`.
 
-The app requests all three symbols together in one API call per interval (five batch calls total for 1D, 4H, 1H, 15M and 5M). Twelve Data multi-symbol responses are parsed separately for EUR/USD, USD/JPY and USD/CAD. Check the API plan's FX coverage, interval availability, credit limits and delayed/real-time status. If a request fails, the dashboard reports an error. It does not fabricate quotes.
+## Install on iPhone
+1. Open the published HTTPS link in Safari.
+2. Tap **Share**.
+3. Choose **Add to Home Screen**.
+4. Name it RBF Trades and tap **Add**.
 
-## Important limitations
-- Session clock hours are indicative standard session windows in New York time; holidays and broker-specific liquidity conditions are not modeled.
-- Trend classification is a simple EMA20/EMA50 and recent-slope heuristic, not a predictive model.
-- Setup entry/stop/target values are volatility-based references, not broker orders or guaranteed levels. Confirm price action, spread, execution conditions and risk independently.
-- Economic calendar is linked externally and not embedded. Calendar feed integration can be added separately with a suitable provider.
-- Data refresh is manual; browser auto-refresh is not enabled to avoid exhausting API quotas.
-
-
-## Batch requests
-The dashboard sends one `/time_series` request per timeframe using the comma-separated symbol parameter: `EUR/USD,USD/JPY,USD/CAD`. This reduces the request count from 15 pair/timeframe calls to 5 timeframe calls. Twelve Data may still charge credits per symbol, and actual credit usage depends on the user's plan/provider rules.
-
-
-## Rate-limit handling (v1.2)
-If Twelve Data returns HTTP 429, the dashboard waits 62 seconds and retries the affected timeframe (up to two retries). On the Basic plan, the five timeframe batches use 15 credits total (3 symbols per interval), so a complete refresh can span more than one minute. Batch requests reduce HTTP request count, not per-symbol credit usage.
+## Data backup
+Use **Export CSV** regularly and store the file somewhere safe. The CSV is portable and can be imported again using **Import CSV**.
 
 
-## v1.3 batch response validation
-The batch parser explicitly reads each symbol-keyed result (EUR/USD, USD/JPY, USD/CAD), handles supported response wrappers, and reports provider error codes/messages. Each timeframe is one multi-symbol request. The app requests 60 candles per interval, enough for the EMA50 trend calculation with a small buffer. HTTP 429 is retried after a 62-second wait, up to two retries; exhausted daily credits cannot be bypassed by the app.
+## Version 1.2 updates
+- Dashboard now separates total money gained on winning trades from total money lost on losing trades, alongside net P&L.
+- Added a timeframe scorecard showing trade count, wins, win rate, net P&L, and average result by chart timeframe.
+- Trade history displays timeframe and realized dollar P&L; search also includes timeframe.
+- Service-worker cache version was advanced so deployed updates replace the older cached app.
+- OANDA transaction exports do not contain the chart timeframe. Imported trades are marked “Not recorded” until the timeframe is assigned by editing the trade.
+
+
+## Version 1.3 updates
+- Added a weekly performance audit that compares a selected Monday–Sunday week against the previous Monday–Sunday week.
+- Weekly comparison includes net P&L, total gained, total lost, wins, losses, breakeven trades, win rate, and closed-trade count.
+- Added a current-week breakdown by strategy and timeframe, plus a short comparison insight.
+- Added export of the weekly audit as CSV and a print-friendly audit view.
+- Weekly audit is based on all saved trades and is independent of the dashboard filters. Open positions are excluded from realized P&L and win-rate calculations.
+
+
+Version 1.4 adds a Weekly Audit shortcut in the top bar, moves the Weekly Performance Audit directly below the KPI cards, and adds a confirmed Clear all trades action to the trade log. Export a CSV before clearing; the action removes all trades from the current browser storage, including records hidden by filters.
+
+
+## v1.5 — Edit existing trades
+Use the Edit action in any trade-log row to reopen and update an existing trade, whether Open or closed. You can revise notes, strategy, timeframe, entry/exit/stop/target/size, result status, and money gained/lost. For an open trade, the money field can hold an optional current unrealized P&L; when closed, edit the same record and replace it with final realized P&L. Open-trade P&L remains excluded from closed performance totals. Editing preserves the original record ID and created timestamp, plus any imported metadata.

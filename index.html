@@ -1,53 +1,167 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b1422"><title>Forex Command | Market Intelligence</title>
-<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101722">
+  <meta name="description" content="Ranging Bull Financial — Trade Intelligence and Performance Analytics">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>RBF | Trade Intelligence</title>
 </head>
 <body>
-<header class="topbar">
- <div class="brand"><div class="mark">FC</div><div><strong>FOREX COMMAND</strong><small>MARKET INTELLIGENCE CENTER</small></div></div>
- <div class="topright"><span id="connection" class="pill warn">DATA NOT CONNECTED</span><span id="clock">--:--:-- ET</span><button id="refresh" class="primary">↻ Refresh</button></div>
-</header>
-<main>
- <section class="hero">
-  <div><p class="eyebrow">DAILY MARKET BRIEF · NEW YORK TIME</p><h1>Trading Situational Awareness</h1><p class="muted">Three pairs. Multiple timeframes. Clear levels. Conditional trade plans.</p></div>
-  <div class="hero-meta"><span class="muted">LAST UPDATED</span><strong id="updated">Not yet updated</strong><span id="marketSummary">Checking market sessions…</span></div>
- </section>
- <section class="session-strip" id="sessions"></section>
- <section class="section-head"><div><p class="eyebrow">01 / TREND SCANNER</p><h2>Pair intelligence</h2></div><span class="muted">Trend model: EMA 20 / EMA 50 + slope</span></section>
- <section id="pairs" class="pair-grid"></section>
- <section class="two-col">
-  <div class="panel">
-   <div class="panel-head"><div><p class="eyebrow">02 / PRICE STRUCTURE</p><h2>Yesterday's levels</h2></div><span class="muted">Previous completed daily candle</span></div>
-   <div class="table-wrap"><table><thead><tr><th>PAIR</th><th>YESTERDAY HIGH</th><th>YESTERDAY LOW</th><th>MIDPOINT</th><th>LAST PRICE</th></tr></thead><tbody id="levels"><tr><td colspan="5" class="empty">Connect market data to load levels.</td></tr></tbody></table></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">RBF</div>
+        <div>
+          <div class="brand-name">RANGING BULL FINANCIAL</div>
+          <div class="brand-sub">TRADE INTELLIGENCE</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-quiet" id="weeklyAuditJump" type="button">Weekly Audit</button>
+        <button class="btn btn-quiet" id="exportBtn" type="button">Export CSV</button>
+        <label class="btn btn-quiet file-label">Import CSV<input id="importFile" type="file" accept=".csv,text/csv"></label>
+        <button class="btn btn-primary" id="newTradeBtn" type="button">＋ Add Trade</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">PERFORMANCE COMMAND CENTER</p>
+          <h1>Know your numbers.<br><span>Trade with evidence.</span></h1>
+          <p class="hero-copy">A clear record of what works, what doesn't, and which strategies earn their place in your process.</p>
+        </div>
+        <div class="hero-stamp"><span class="stamp-dot"></span> LOCAL JOURNAL ACTIVE</div>
+      </section>
+
+      <section class="filters panel">
+        <div class="filter-title">REPORT FILTERS</div>
+        <div class="filter-grid">
+          <label>From<input type="date" id="fromDate"></label>
+          <label>To<input type="date" id="toDate"></label>
+          <label>Pair<select id="pairFilter"><option value="">All pairs</option></select></label>
+          <label>Indicator / Strategy<select id="strategyFilter"><option value="">All strategies</option></select></label>
+          <label>Market condition<select id="conditionFilter"><option value="">All conditions</option><option>Trending</option><option>Ranging</option><option>Reversing</option><option>Volatile</option><option>Unknown</option></select></label>
+          <button class="btn btn-quiet filter-reset" id="clearFilters" type="button">Clear filters</button>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="Performance summary">
+        <article class="stat-card"><div class="stat-label">NET P&amp;L</div><div class="stat-value" id="netPnl">$0.00</div><div class="stat-foot" id="pnlFoot">Realized results</div></article>
+        <article class="stat-card"><div class="stat-label">TOTAL GAINED</div><div class="stat-value positive" id="grossProfit">$0.00</div><div class="stat-foot">Winning trades combined</div></article>
+        <article class="stat-card"><div class="stat-label">TOTAL LOST</div><div class="stat-value negative" id="grossLoss">$0.00</div><div class="stat-foot">Losing trades combined</div></article>
+        <article class="stat-card"><div class="stat-label">WIN RATE</div><div class="stat-value" id="winRate">—</div><div class="stat-foot" id="winFoot">No closed trades yet</div></article>
+        <article class="stat-card"><div class="stat-label">TOTAL TRADES</div><div class="stat-value" id="totalTrades">0</div><div class="stat-foot" id="closedFoot">0 closed</div></article>
+        <article class="stat-card"><div class="stat-label">PROFIT FACTOR</div><div class="stat-value" id="profitFactor">—</div><div class="stat-foot">Gross profit ÷ gross loss</div></article>
+        <article class="stat-card"><div class="stat-label">AVERAGE WIN</div><div class="stat-value positive" id="avgWin">$0.00</div><div class="stat-foot">Per winning trade</div></article>
+        <article class="stat-card"><div class="stat-label">AVERAGE LOSS</div><div class="stat-value negative" id="avgLoss">$0.00</div><div class="stat-foot">Per losing trade</div></article>
+      </section>
+
+      <section class="panel weekly-audit-panel" id="weeklyAudit">
+        <div class="section-head audit-heading">
+          <div><p class="eyebrow">WEEKLY PERFORMANCE AUDIT</p><h2>How did this week compare?</h2><p class="note">Choose the Monday that starts the audit week. RBF compares that week with the previous Monday–Sunday period.</p></div>
+          <div class="audit-controls"><label>Week starting Monday<input type="date" id="auditWeekStart"></label><button class="btn btn-quiet" id="exportAuditBtn" type="button">Export audit CSV</button><button class="btn btn-quiet" id="printAuditBtn" type="button">Print audit</button></div>
+        </div>
+        <div class="audit-period-labels"><span id="currentWeekLabel">Current week</span><span id="previousWeekLabel">Previous week</span></div>
+        <div class="audit-compare-grid">
+          <article class="audit-period-card"><h3>This audit week</h3><div class="audit-big-number" id="auditCurrentPnl">$0.00</div><div class="audit-sub" id="auditCurrentMeta">0 closed trades</div><div class="audit-mini-grid"><div><span>Wins / Losses</span><b id="auditCurrentWL">0 / 0</b></div><div><span>Win rate</span><b id="auditCurrentWinRate">—</b></div><div><span>Total gained</span><b class="positive-text" id="auditCurrentGain">$0.00</b></div><div><span>Total lost</span><b class="negative-text" id="auditCurrentLoss">$0.00</b></div></div></article>
+          <article class="audit-period-card"><h3>Previous week</h3><div class="audit-big-number" id="auditPreviousPnl">$0.00</div><div class="audit-sub" id="auditPreviousMeta">0 closed trades</div><div class="audit-mini-grid"><div><span>Wins / Losses</span><b id="auditPreviousWL">0 / 0</b></div><div><span>Win rate</span><b id="auditPreviousWinRate">—</b></div><div><span>Total gained</span><b class="positive-text" id="auditPreviousGain">$0.00</b></div><div><span>Total lost</span><b class="negative-text" id="auditPreviousLoss">$0.00</b></div></div></article>
+        </div>
+        <div class="audit-delta-strip"><strong>Week-over-week change</strong><span id="auditPnlChange">$0.00</span><span id="auditTradeChange">0 trades</span><span id="auditWinRateChange">Win rate: —</span></div>
+        <div class="audit-insight" id="auditInsight">Record trades to generate your weekly audit.</div>
+        <div class="section-head audit-table-heading"><div><p class="eyebrow">CURRENT WEEK BREAKDOWN</p><h2>Strategy and timeframe results</h2></div></div>
+        <div class="table-wrap"><table><thead><tr><th>CATEGORY</th><th>NAME</th><th>CLOSED</th><th>WINS</th><th>WIN RATE</th><th>NET P&amp;L</th><th>AVG / TRADE</th></tr></thead><tbody id="auditBreakdownRows"><tr><td colspan="7" class="empty-cell">No trades in this audit week yet.</td></tr></tbody></table></div>
+        <p class="note">Only closed trades count toward realized P&amp;L and win rate. Open positions are excluded from the comparison. Weekly audit uses all recorded trades, independent of the dashboard filters above.</p>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel performance-panel">
+          <div class="section-head"><div><p class="eyebrow">STRATEGY SCORECARD</p><h2>Which approach is working?</h2></div><span class="muted small" id="scorecardCount">0 strategies</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>INDICATOR / STRATEGY</th><th>TRADES</th><th>WINS</th><th>WIN RATE</th><th>NET P&amp;L</th><th>AVG / TRADE</th></tr></thead>
+              <tbody id="strategyRows"><tr><td colspan="6" class="empty-cell">Add trades to build your strategy report.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="note">Strategy names are optional. Trades marked “None / Manual” remain included in your overall results.</p>
+        </article>
+
+        <article class="panel breakdown-panel">
+          <div class="section-head"><div><p class="eyebrow">RESULT DISTRIBUTION</p><h2>Wins vs. losses</h2></div></div>
+          <div class="distribution">
+            <div class="donut" id="donut"><div><strong id="donutPct">—</strong><span>WIN RATE</span></div></div>
+            <div class="legend">
+              <div><i class="legend-dot win"></i><span>Wins</span><b id="winsCount">0</b></div>
+              <div><i class="legend-dot loss"></i><span>Losses</span><b id="lossesCount">0</b></div>
+              <div><i class="legend-dot even"></i><span>Breakeven</span><b id="evenCount">0</b></div>
+              <div><i class="legend-dot open"></i><span>Open</span><b id="openCount">0</b></div>
+            </div>
+          </div>
+          <div class="insight-box" id="insightBox"><span class="insight-icon">i</span><p>As you record trades, RBF will surface your strongest strategy and key performance patterns here.</p></div>
+        </article>
+      </section>
+
+      <section class="panel performance-panel" style="margin-bottom:15px">
+        <div class="section-head"><div><p class="eyebrow">TIMEFRAME SCORECARD</p><h2>Which chart timeframe performs best?</h2></div><span class="muted small" id="timeframeCount">0 timeframes</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>TIMEFRAME</th><th>TRADES</th><th>WINS</th><th>WIN RATE</th><th>NET P&amp;L</th><th>AVG / TRADE</th></tr></thead>
+          <tbody id="timeframeRows"><tr><td colspan="6" class="empty-cell">Assign a timeframe to trades to build this report.</td></tr></tbody>
+        </table></div>
+        <p class="note">Imported OANDA trades show “Not recorded” until you edit them and assign the chart timeframe you used.</p>
+      </section>
+
+
+
+      <section class="panel trades-panel">
+        <div class="section-head trades-heading">
+          <div><p class="eyebrow">TRADE LOG</p><h2>Trade history</h2><p class="note">Use Edit to enter the actual dollar gain/loss and timeframe for each manually recorded trade.</p></div>
+          <button class="btn btn-danger" id="clearAllTradesBtn" type="button">Clear all trades</button>
+          <div class="trade-search"><input id="searchTrades" type="search" placeholder="Search pair, notes, strategy…"><select id="resultFilter"><option value="">All results</option><option>Win</option><option>Loss</option><option>Breakeven</option><option>Open</option></select></div>
+        </div>
+        <div class="table-wrap">
+          <table class="trade-table">
+            <thead><tr><th>DATE</th><th>PAIR</th><th>DIR.</th><th>INDICATOR / STRATEGY</th><th>TIMEFRAME</th><th>RESULT</th><th>NET P&amp;L</th><th></th></tr></thead>
+            <tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No trades recorded. Select “Add Trade” to enter your first trade.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span id="showingCount">Showing 0 trades</span><span>Stored on this device</span></div>
+      </section>
+    </main>
+
+    <footer><span>RBF · RANGING BULL FINANCIAL</span><span>TRADE INTELLIGENCE / VERSION 1.4</span></footer>
   </div>
-  <div class="panel">
-   <div class="panel-head"><div><p class="eyebrow">03 / TRADE INTELLIGENCE</p><h2>Conditional setups</h2></div><span class="muted">Not automatic orders</span></div>
-   <div id="setups"><p class="empty">Trade plans appear after live data loads.</p></div>
+
+  <div class="modal-backdrop" id="tradeModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head"><div><p class="eyebrow">TRADE RECORD</p><h2 id="modalTitle">Add a trade</h2></div><button class="icon-btn" id="closeModal" aria-label="Close">×</button></div>
+      <form id="tradeForm">
+        <input type="hidden" id="tradeId">
+        <div class="form-grid">
+          <label>Trade date *<input type="date" id="tradeDate" required></label>
+          <label>Currency pair *<input id="pair" list="pairOptions" placeholder="EUR/USD" required><datalist id="pairOptions"><option>EUR/USD</option><option>USD/JPY</option><option>GBP/USD</option><option>AUD/USD</option><option>USD/CAD</option><option>NZD/USD</option><option>EUR/JPY</option></datalist></label>
+          <label>Direction *<select id="direction" required><option>Long</option><option>Short</option></select></label>
+          <label>Result *<select id="result" required><option>Win</option><option>Loss</option><option>Breakeven</option><option>Open</option></select></label>
+          <label class="span-2">Indicator / Strategy Used <input id="strategy" list="strategyOptions" placeholder="Optional — e.g. Ranging Bull, FIAT LVX"><datalist id="strategyOptions"><option>Ranging Bull</option><option>FIAT LVX</option><option>RB Apex</option><option>Equilibrium</option><option>PRS AI Commander</option><option>None / Manual</option></datalist><small>Optional. Add any indicator or strategy name you want to compare later.</small></label>
+          <label>Timeframe<select id="timeframe"><option value="">Not specified</option><option>1m</option><option>5m</option><option>15m</option><option>30m</option><option>1H</option><option>4H</option><option>Daily</option><option>Weekly</option></select></label>
+          <label>Market condition<select id="condition"><option value="">Not specified</option><option>Trending</option><option>Ranging</option><option>Reversing</option><option>Volatile</option><option>Unknown</option></select></label>
+          <label>Entry price<input type="number" id="entry" step="any" placeholder="0.00000"></label>
+          <label>Exit price<input type="number" id="exit" step="any" placeholder="0.00000"></label>
+          <label>Stop loss<input type="number" id="stop" step="any" placeholder="Optional"></label>
+          <label>Take profit<input type="number" id="target" step="any" placeholder="Optional"></label>
+          <label>Position size / lots<input type="number" id="size" step="any" min="0" placeholder="Optional"></label>
+          <label>Money gained / lost (account currency)<input type="number" id="pnl" step="any" placeholder="e.g. 125.50" required></label>
+          <label class="span-2">Trade notes<textarea id="notes" rows="3" placeholder="What was the setup? Did you follow your rules? What would you change?"></textarea></label>
+        </div>
+        <div class="form-warning">For an open trade, enter the current unrealized amount if you want to track it. When the trade closes, edit this same record and replace it with the final realized gain or loss. Open-trade P&amp;L is not included in closed-trade performance totals. RBF does not estimate Forex profit from price movement or lot size.</div>
+        <div class="modal-actions"><button class="btn btn-quiet" type="button" id="cancelTrade">Cancel</button><button class="btn btn-primary" type="submit">Save trade</button></div>
+      </form>
+    </section>
   </div>
- </section>
- <section class="two-col">
-  <div class="panel">
-   <div class="panel-head"><div><p class="eyebrow">04 / ECONOMIC THREAT BOARD</p><h2>Today's news risk</h2></div><a href="https://www.forexfactory.com/calendar" target="_blank" rel="noopener">Open calendar ↗</a></div>
-   <p class="muted">Check release times and actual/forecast values before trading. Calendar data is not currently embedded; use the linked live calendar until a calendar data provider is configured.</p>
-   <div class="news-note"><strong>Pre-trade rule</strong><span>Do not open a new position immediately ahead of high-impact releases affecting USD, EUR, JPY or CAD. Reassess spreads and volatility after the release.</span></div>
-  </div>
-  <div class="panel">
-   <div class="panel-head"><div><p class="eyebrow">05 / MISSION CONTROL</p><h2>Market conditions</h2></div></div>
-   <div id="warnings"><p class="empty">Waiting for market data.</p></div>
-   <div class="rules"><strong>Execution doctrine</strong><ul><li>Weekly and daily establish the major context.</li><li>4H and 1H determine directional alignment.</li><li>15M develops the setup; 5M is for entry confirmation.</li><li>If structure conflicts or price is choppy: NO TRADE.</li></ul></div>
-  </div>
- </section>
- <section class="panel settings">
-  <div class="panel-head"><div><p class="eyebrow">SYSTEM CONFIGURATION</p><h2>Market data connection</h2></div><span class="pill warn" id="keyStatus">API KEY REQUIRED</span></div>
-  <p class="muted">This version uses Twelve Data for FX candles. Create an API key at <a href="https://twelvedata.com/" target="_blank" rel="noopener">Twelve Data</a>, then enter it below. The key is stored only in this browser. For a public website, use a server-side proxy (such as a Cloudflare Worker) rather than exposing a paid API key in client code.</p>
-  <div class="keyrow"><input id="apiKey" type="password" autocomplete="off" placeholder="Enter Twelve Data API key"><button id="saveKey" class="primary">Save key</button><button id="forgetKey" class="ghost">Forget key</button></div>
-  <p class="small muted">Refresh requests daily, 4-hour, 1-hour, 15-minute and 5-minute candles for EUR/USD, USD/JPY and USD/CAD. On lower API-credit plans, refresh may pause and retry automatically when the per-minute quota is reached.</p>
-  <div class="footerline"><span>FOREX COMMAND · Independent trading tool</span><span>Analysis is informational, not financial advice.</span></div>
- </section>
-</main>
-<script src="app.js"></script>
-</body></html>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

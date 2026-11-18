@@ -1,15 +1,17 @@
 {
-  "name": "Forex Command",
-  "short_name": "Forex Command",
+  "name": "RBF \u2014 Trade Intelligence",
+  "short_name": "RBF Trades",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#091321",
-  "theme_color": "#091321",
+  "background_color": "#0b1119",
+  "theme_color": "#101722",
+  "description": "Ranging Bull Financial Trade Intelligence",
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
