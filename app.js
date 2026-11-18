@@ -101,6 +101,15 @@ $("tradeRows").addEventListener("click",e=>{
 });
 ["fromDate","toDate","pairFilter","strategyFilter","conditionFilter","resultFilter","searchTrades"].forEach(id=>$(id).addEventListener(id==="searchTrades"?"input":"change",refresh));
 $("clearFilters").addEventListener("click",()=>{["fromDate","toDate","pairFilter","strategyFilter","conditionFilter","resultFilter","searchTrades"].forEach(id=>$(id).value="");refresh()});
+$("weeklyAuditJump").addEventListener("click",()=>$("weeklyAudit").scrollIntoView({behavior:"smooth",block:"start"}));
+$("clearAllTradesBtn").addEventListener("click",()=>{
+ if(!trades.length){toast("The trade log is already empty.");return}
+ const count=trades.length;
+ const approved=confirm(`CLEAR ALL ${count} TRADES?\n\nThis permanently removes every trade record from this browser, including trades hidden by filters. This cannot be undone.\n\nExport your CSV first if you may need these records later.`);
+ if(!approved)return;
+ trades=[];saveTrades();updateFilters();refresh();renderAudit();
+ toast(`${count} trade records cleared.`);
+});
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 const columns=["date","pair","direction","strategy","timeframe","condition","entry","exit","stop","target","size","result","pnl","notes"];
 $("exportBtn").addEventListener("click",()=>{

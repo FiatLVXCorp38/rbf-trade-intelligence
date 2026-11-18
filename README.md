@@ -54,3 +54,6 @@ Use **Export CSV** regularly and store the file somewhere safe. The CSV is porta
 - Added a current-week breakdown by strategy and timeframe, plus a short comparison insight.
 - Added export of the weekly audit as CSV and a print-friendly audit view.
 - Weekly audit is based on all saved trades and is independent of the dashboard filters. Open positions are excluded from realized P&L and win-rate calculations.
+
+
+Version 1.4 adds a Weekly Audit shortcut in the top bar, moves the Weekly Performance Audit directly below the KPI cards, and adds a confirmed Clear all trades action to the trade log. Export a CSV before clearing; the action removes all trades from the current browser storage, including records hidden by filters.
