@@ -1,4 +1,5 @@
 const STORAGE_KEY = "rbf_trade_intelligence_v1";
+const JOURNAL_KEY = "rbf_trade_intelligence_daily_journal_v1";
 const $ = id => document.getElementById(id);
 let trades = loadTrades();
 let toastTimer;
@@ -110,7 +111,42 @@ $("clearAllTradesBtn").addEventListener("click",()=>{
  const count=trades.length;
  const approved=confirm(`CLEAR ALL ${count} TRADES?\n\nThis permanently removes every trade record from this browser, including trades hidden by filters. This cannot be undone.\n\nExport your CSV first if you may need these records later.`);
  if(!approved)return;
- trades=[];saveTrades();updateFilters();refresh();renderAudit();
+ trades=[];saveTrades();// Daily journal: stored separately so trade history from earlier versions is untouched.
+let journalEntries = loadJournal();
+let activeJournalDate = "";
+function loadJournal(){try{return JSON.parse(localStorage.getItem(JOURNAL_KEY)||"{}")}catch{return {}}}
+function saveJournalStore(){localStorage.setItem(JOURNAL_KEY,JSON.stringify(journalEntries))}
+function journalDateNow(){return dateNow()}
+function journalPreview(entry){const source=(entry.activity||entry.analysis||entry.lessons||"").replace(/\s+/g," ").trim();return source?source.slice(0,92)+(source.length>92?"…":""):"No notes yet"}
+function renderJournalList(){
+ const dates=Object.keys(journalEntries).sort((a,b)=>b.localeCompare(a));
+ $("journalCount").textContent=`${dates.length} entr${dates.length===1?"y":"ies"}`;
+ $("journalEntries").innerHTML=dates.length?dates.map(d=>{const e=journalEntries[d];return `<button type="button" class="journal-entry ${d===activeJournalDate?"active":""}" data-journal-date="${safe(d)}"><strong>${safe(d)}</strong><span>${safe(journalPreview(e))}</span></button>`}).join(""):`<div class="journal-empty">Your saved trading days will appear here.</div>`;
+}
+function renderJournalSummary(date){
+ const dayTrades=trades.filter(t=>t.date===date),s=stats(dayTrades);
+ $("journalDaySummary").innerHTML=dayTrades.length?`<strong>${dayTrades.length} trade${dayTrades.length===1?"":"s"} recorded on this date</strong><span>${s.closed} closed · ${s.wins} wins · ${s.losses} losses · ${s.open} open · Net realized P&amp;L: <b class="${s.pnl>0?"positive-text":s.pnl<0?"negative-text":"neutral-text"}">${money(s.pnl)}</b></span>`:`No trades are linked to this date yet. Add trades with this same trade date and they will appear here.`;
+}
+function openJournalDate(date){
+ activeJournalDate=date;const e=journalEntries[date]||{};
+ $("journalDate").value=date;$("journalActivity").value=e.activity||"";$("journalAnalysis").value=e.analysis||"";$("journalLessons").value=e.lessons||"";
+ $("journalStatus").textContent=journalEntries[date]?`Saved · ${new Date(journalEntries[date].updatedAt||Date.now()).toLocaleString()}`:"New entry";
+ $("deleteJournalBtn").disabled=!journalEntries[date];renderJournalList();renderJournalSummary(date);
+}
+function saveJournalEntry(){
+ const date=$("journalDate").value;if(!date){toast("Choose a trading day first.");return}
+ const entry={activity:$("journalActivity").value.trim(),analysis:$("journalAnalysis").value.trim(),lessons:$("journalLessons").value.trim(),updatedAt:Date.now()};
+ if(!entry.activity&&!entry.analysis&&!entry.lessons){toast("Write something before saving the journal entry.");return}
+ journalEntries[date]=entry;saveJournalStore();openJournalDate(date);toast("Daily journal saved.");
+}
+$("saveJournalBtn").addEventListener("click",saveJournalEntry);
+$("newJournalBtn").addEventListener("click",()=>openJournalDate(journalDateNow()));
+$("journalEntries").addEventListener("click",e=>{const b=e.target.closest("[data-journal-date]");if(b){if(activeJournalDate&&journalEntries[activeJournalDate]&&($("journalActivity").value.trim()!==journalEntries[activeJournalDate].activity||$("journalAnalysis").value.trim()!==journalEntries[activeJournalDate].analysis||$("journalLessons").value.trim()!==journalEntries[activeJournalDate].lessons)){if(!confirm("You have unsaved changes. Open another day without saving?"))return}openJournalDate(b.dataset.journalDate)}});
+$("journalDate").addEventListener("change",()=>{const d=$("journalDate").value;if(d)openJournalDate(d)});
+$("deleteJournalBtn").addEventListener("click",()=>{if(!activeJournalDate||!journalEntries[activeJournalDate])return;if(!confirm(`Delete the journal entry for ${activeJournalDate}? This will not delete any trades.`))return;delete journalEntries[activeJournalDate];saveJournalStore();openJournalDate(journalDateNow());toast("Journal entry deleted.")});
+openJournalDate(journalDateNow());
+
+updateFilters();refresh();renderAudit();
  toast(`${count} trade records cleared.`);
 });
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}

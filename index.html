@@ -78,6 +78,27 @@
         <p class="note">Only closed trades count toward realized P&amp;L and win rate. Open positions are excluded from the comparison. Weekly audit uses all recorded trades, independent of the dashboard filters above.</p>
       </section>
 
+      <section class="panel daily-journal-panel" id="dailyJournal">
+        <div class="section-head journal-heading">
+          <div><p class="eyebrow">DAILY TRADING JOURNAL</p><h2>Document the session. Learn from the record.</h2><p class="note">Write what happened during the trading day, analyze your executions, and save each date as its own entry. Select any previous date to review or edit it.</p></div>
+          <div class="journal-actions"><button class="btn btn-quiet" id="newJournalBtn" type="button">＋ New day</button><button class="btn btn-primary" id="saveJournalBtn" type="button">Save journal entry</button></div>
+        </div>
+        <div class="journal-layout">
+          <aside class="journal-history">
+            <div class="journal-history-head"><strong>PREVIOUS DAYS</strong><span id="journalCount">0 entries</span></div>
+            <div id="journalEntries" class="journal-entry-list"><div class="journal-empty">Your saved trading days will appear here.</div></div>
+          </aside>
+          <div class="journal-editor">
+            <div class="journal-date-row"><label>Trading day<input type="date" id="journalDate"></label><span id="journalStatus" class="journal-status">New entry</span></div>
+            <label class="journal-field">Day activity<textarea id="journalActivity" rows="5" placeholder="What happened today? Market conditions, sessions watched, pairs monitored, setups that appeared, and what you did..."></textarea></label>
+            <label class="journal-field">Trade analysis<textarea id="journalAnalysis" rows="6" placeholder="Review each decision. What was the setup? Did you follow your rules? What worked, what failed, and why?"></textarea></label>
+            <label class="journal-field">Lessons / next session<textarea id="journalLessons" rows="3" placeholder="What did today teach you? What will you repeat, change, or avoid next time?"></textarea></label>
+            <div class="journal-day-summary" id="journalDaySummary">Select a date to see the trades recorded for that day.</div>
+            <div class="journal-bottom-actions"><button class="btn btn-danger" id="deleteJournalBtn" type="button" disabled>Delete this day</button><span class="note">Journal entries are saved in this browser, separately from your trade records.</span></div>
+          </div>
+        </div>
+      </section>
+
       <section class="content-grid">
         <article class="panel performance-panel">
           <div class="section-head"><div><p class="eyebrow">STRATEGY SCORECARD</p><h2>Which approach is working?</h2></div><span class="muted small" id="scorecardCount">0 strategies</span></div>
@@ -132,7 +153,7 @@
       </section>
     </main>
 
-    <footer><span>RBF · RANGING BULL FINANCIAL</span><span>TRADE INTELLIGENCE / VERSION 1.4</span></footer>
+    <footer><span>RBF · RANGING BULL FINANCIAL</span><span>TRADE INTELLIGENCE / VERSION 1.6</span></footer>
   </div>
 
   <div class="modal-backdrop" id="tradeModal" hidden>

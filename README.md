@@ -61,3 +61,12 @@ Version 1.4 adds a Weekly Audit shortcut in the top bar, moves the Weekly Perfor
 
 ## v1.5 — Edit existing trades
 Use the Edit action in any trade-log row to reopen and update an existing trade, whether Open or closed. You can revise notes, strategy, timeframe, entry/exit/stop/target/size, result status, and money gained/lost. For an open trade, the money field can hold an optional current unrealized P&L; when closed, edit the same record and replace it with final realized P&L. Open-trade P&L remains excluded from closed performance totals. Editing preserves the original record ID and created timestamp, plus any imported metadata.
+
+
+## Version 1.6 — Daily Trading Journal
+
+- Added a date-based daily journal with separate fields for day activity, trade analysis, and lessons / next session.
+- Each date is saved as its own entry; select a previous date in the history list to read or edit it.
+- The selected day displays the trades recorded on that date and their closed-trade results.
+- Journal entries use a separate localStorage key from trade records, preserving existing trade data and keeping journal deletion independent from trade deletion.
+- Data remains in the browser on the same device and GitHub Pages origin. Export/back up your data before clearing browser storage.
