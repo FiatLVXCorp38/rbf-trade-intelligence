@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#101722">
+  <meta name="description" content="Ranging Bull Financial — Trade Intelligence and Performance Analytics">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>RBF | Trade Intelligence</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">RBF</div>
+        <div>
+          <div class="brand-name">RANGING BULL FINANCIAL</div>
+          <div class="brand-sub">TRADE INTELLIGENCE</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-quiet" id="exportBtn" type="button">Export CSV</button>
+        <label class="btn btn-quiet file-label">Import CSV<input id="importFile" type="file" accept=".csv,text/csv"></label>
+        <button class="btn btn-primary" id="newTradeBtn" type="button">＋ Add Trade</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">PERFORMANCE COMMAND CENTER</p>
+          <h1>Know your numbers.<br><span>Trade with evidence.</span></h1>
+          <p class="hero-copy">A clear record of what works, what doesn't, and which strategies earn their place in your process.</p>
+        </div>
+        <div class="hero-stamp"><span class="stamp-dot"></span> LOCAL JOURNAL ACTIVE</div>
+      </section>
+
+      <section class="filters panel">
+        <div class="filter-title">REPORT FILTERS</div>
+        <div class="filter-grid">
+          <label>From<input type="date" id="fromDate"></label>
+          <label>To<input type="date" id="toDate"></label>
+          <label>Pair<select id="pairFilter"><option value="">All pairs</option></select></label>
+          <label>Indicator / Strategy<select id="strategyFilter"><option value="">All strategies</option></select></label>
+          <label>Market condition<select id="conditionFilter"><option value="">All conditions</option><option>Trending</option><option>Ranging</option><option>Reversing</option><option>Volatile</option><option>Unknown</option></select></label>
+          <button class="btn btn-quiet filter-reset" id="clearFilters" type="button">Clear filters</button>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="Performance summary">
+        <article class="stat-card"><div class="stat-label">NET P&amp;L</div><div class="stat-value" id="netPnl">$0.00</div><div class="stat-foot" id="pnlFoot">Realized results</div></article>
+        <article class="stat-card"><div class="stat-label">WIN RATE</div><div class="stat-value" id="winRate">—</div><div class="stat-foot" id="winFoot">No closed trades yet</div></article>
+        <article class="stat-card"><div class="stat-label">TOTAL TRADES</div><div class="stat-value" id="totalTrades">0</div><div class="stat-foot" id="closedFoot">0 closed</div></article>
+        <article class="stat-card"><div class="stat-label">PROFIT FACTOR</div><div class="stat-value" id="profitFactor">—</div><div class="stat-foot">Gross profit ÷ gross loss</div></article>
+        <article class="stat-card"><div class="stat-label">AVERAGE WIN</div><div class="stat-value positive" id="avgWin">$0.00</div><div class="stat-foot">Per winning trade</div></article>
+        <article class="stat-card"><div class="stat-label">AVERAGE LOSS</div><div class="stat-value negative" id="avgLoss">$0.00</div><div class="stat-foot">Per losing trade</div></article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel performance-panel">
+          <div class="section-head"><div><p class="eyebrow">STRATEGY SCORECARD</p><h2>Which approach is working?</h2></div><span class="muted small" id="scorecardCount">0 strategies</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>INDICATOR / STRATEGY</th><th>TRADES</th><th>WINS</th><th>WIN RATE</th><th>NET P&amp;L</th><th>AVG / TRADE</th></tr></thead>
+              <tbody id="strategyRows"><tr><td colspan="6" class="empty-cell">Add trades to build your strategy report.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="note">Strategy names are optional. Trades marked “None / Manual” remain included in your overall results.</p>
+        </article>
+
+        <article class="panel breakdown-panel">
+          <div class="section-head"><div><p class="eyebrow">RESULT DISTRIBUTION</p><h2>Wins vs. losses</h2></div></div>
+          <div class="distribution">
+            <div class="donut" id="donut"><div><strong id="donutPct">—</strong><span>WIN RATE</span></div></div>
+            <div class="legend">
+              <div><i class="legend-dot win"></i><span>Wins</span><b id="winsCount">0</b></div>
+              <div><i class="legend-dot loss"></i><span>Losses</span><b id="lossesCount">0</b></div>
+              <div><i class="legend-dot even"></i><span>Breakeven</span><b id="evenCount">0</b></div>
+              <div><i class="legend-dot open"></i><span>Open</span><b id="openCount">0</b></div>
+            </div>
+          </div>
+          <div class="insight-box" id="insightBox"><span class="insight-icon">i</span><p>As you record trades, RBF will surface your strongest strategy and key performance patterns here.</p></div>
+        </article>
+      </section>
+
+      <section class="panel trades-panel">
+        <div class="section-head trades-heading">
+          <div><p class="eyebrow">TRADE LOG</p><h2>Trade history</h2></div>
+          <div class="trade-search"><input id="searchTrades" type="search" placeholder="Search pair, notes, strategy…"><select id="resultFilter"><option value="">All results</option><option>Win</option><option>Loss</option><option>Breakeven</option><option>Open</option></select></div>
+        </div>
+        <div class="table-wrap">
+          <table class="trade-table">
+            <thead><tr><th>DATE</th><th>PAIR</th><th>DIR.</th><th>INDICATOR / STRATEGY</th><th>TIMEFRAME</th><th>RESULT</th><th>NET P&amp;L</th><th></th></tr></thead>
+            <tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">No trades recorded. Select “Add Trade” to enter your first trade.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span id="showingCount">Showing 0 trades</span><span>Stored on this device</span></div>
+      </section>
+    </main>
+
+    <footer><span>RBF · RANGING BULL FINANCIAL</span><span>TRADE INTELLIGENCE / VERSION 1.0</span></footer>
+  </div>
+
+  <div class="modal-backdrop" id="tradeModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head"><div><p class="eyebrow">TRADE RECORD</p><h2 id="modalTitle">Add a trade</h2></div><button class="icon-btn" id="closeModal" aria-label="Close">×</button></div>
+      <form id="tradeForm">
+        <input type="hidden" id="tradeId">
+        <div class="form-grid">
+          <label>Trade date *<input type="date" id="tradeDate" required></label>
+          <label>Currency pair *<input id="pair" list="pairOptions" placeholder="EUR/USD" required><datalist id="pairOptions"><option>EUR/USD</option><option>USD/JPY</option><option>GBP/USD</option><option>AUD/USD</option><option>USD/CAD</option><option>NZD/USD</option><option>EUR/JPY</option></datalist></label>
+          <label>Direction *<select id="direction" required><option>Long</option><option>Short</option></select></label>
+          <label>Result *<select id="result" required><option>Win</option><option>Loss</option><option>Breakeven</option><option>Open</option></select></label>
+          <label class="span-2">Indicator / Strategy Used <input id="strategy" list="strategyOptions" placeholder="Optional — e.g. Ranging Bull, FIAT LVX"><datalist id="strategyOptions"><option>Ranging Bull</option><option>FIAT LVX</option><option>RB Apex</option><option>Equilibrium</option><option>PRS AI Commander</option><option>None / Manual</option></datalist><small>Optional. Add any indicator or strategy name you want to compare later.</small></label>
+          <label>Timeframe<select id="timeframe"><option value="">Not specified</option><option>1m</option><option>5m</option><option>15m</option><option>30m</option><option>1H</option><option>4H</option><option>Daily</option><option>Weekly</option></select></label>
+          <label>Market condition<select id="condition"><option value="">Not specified</option><option>Trending</option><option>Ranging</option><option>Reversing</option><option>Volatile</option><option>Unknown</option></select></label>
+          <label>Entry price<input type="number" id="entry" step="any" placeholder="0.00000"></label>
+          <label>Exit price<input type="number" id="exit" step="any" placeholder="0.00000"></label>
+          <label>Stop loss<input type="number" id="stop" step="any" placeholder="Optional"></label>
+          <label>Take profit<input type="number" id="target" step="any" placeholder="Optional"></label>
+          <label>Position size / lots<input type="number" id="size" step="any" min="0" placeholder="Optional"></label>
+          <label>Realized P&amp;L (account currency) *<input type="number" id="pnl" step="any" placeholder="e.g. 125.50" required></label>
+          <label class="span-2">Trade notes<textarea id="notes" rows="3" placeholder="What was the setup? Did you follow your rules? What would you change?"></textarea></label>
+        </div>
+        <div class="form-warning">Enter your actual realized P&amp;L for closed trades. RBF does not estimate Forex profit from price movement or lot size because pip value depends on the pair, account currency, and position details.</div>
+        <div class="modal-actions"><button class="btn btn-quiet" type="button" id="cancelTrade">Cancel</button><button class="btn btn-primary" type="submit">Save trade</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
