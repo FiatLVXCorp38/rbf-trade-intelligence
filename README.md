@@ -1,5 +1,5 @@
 # RBF — Ranging Bull Financial
-## Trade Intelligence & Performance Analytics · Version 1.0
+## Trade Intelligence & Performance Analytics · Version 1.3
 
 A free, installable web app for recording trades and analyzing performance by indicator/strategy, currency pair, timeframe, and market condition.
 
@@ -38,3 +38,19 @@ A free, installable web app for recording trades and analyzing performance by in
 
 ## Data backup
 Use **Export CSV** regularly and store the file somewhere safe. The CSV is portable and can be imported again using **Import CSV**.
+
+
+## Version 1.2 updates
+- Dashboard now separates total money gained on winning trades from total money lost on losing trades, alongside net P&L.
+- Added a timeframe scorecard showing trade count, wins, win rate, net P&L, and average result by chart timeframe.
+- Trade history displays timeframe and realized dollar P&L; search also includes timeframe.
+- Service-worker cache version was advanced so deployed updates replace the older cached app.
+- OANDA transaction exports do not contain the chart timeframe. Imported trades are marked “Not recorded” until the timeframe is assigned by editing the trade.
+
+
+## Version 1.3 updates
+- Added a weekly performance audit that compares a selected Monday–Sunday week against the previous Monday–Sunday week.
+- Weekly comparison includes net P&L, total gained, total lost, wins, losses, breakeven trades, win rate, and closed-trade count.
+- Added a current-week breakdown by strategy and timeframe, plus a short comparison insight.
+- Added export of the weekly audit as CSV and a print-friendly audit view.
+- Weekly audit is based on all saved trades and is independent of the dashboard filters. Open positions are excluded from realized P&L and win-rate calculations.

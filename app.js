@@ -15,7 +15,7 @@ function filteredTrades(){
   if(from&&t.date<from)return false;if(to&&t.date>to)return false;
   if(pair&&t.pair!==pair)return false;if(strategy&&(t.strategy||"None / Manual")!==strategy)return false;
   if(condition&&(t.condition||"Unknown")!==condition)return false;if(result&&t.result!==result)return false;
-  if(search&&!`${t.pair} ${t.strategy} ${t.notes} ${t.condition}`.toLowerCase().includes(search))return false;
+  if(search&&!`${t.pair} ${t.strategy} ${t.notes} ${t.condition} ${t.timeframe}`.toLowerCase().includes(search))return false;
   return true;
  }).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
 }
@@ -24,13 +24,14 @@ function stats(ts){
  const c=closed(ts),wins=c.filter(t=>t.result==="Win"),losses=c.filter(t=>t.result==="Loss"),even=c.filter(t=>t.result==="Breakeven"),open=ts.length-c.length;
  const pnl=c.reduce((s,t)=>s+(Number(t.pnl)||0),0),grossWin=wins.reduce((s,t)=>s+Math.max(0,Number(t.pnl)||0),0),grossLoss=Math.abs(losses.reduce((s,t)=>s+Math.min(0,Number(t.pnl)||0),0));
  const avgWin=wins.length?wins.reduce((s,t)=>s+(Number(t.pnl)||0),0)/wins.length:0,avgLoss=losses.length?losses.reduce((s,t)=>s+(Number(t.pnl)||0),0)/losses.length:0;
- return {total:ts.length,closed:c.length,wins:wins.length,losses:losses.length,even:even.length,open,pnl,winRate:c.length?(wins.length/c.length*100):null,pf:grossLoss?grossWin/grossLoss:(grossWin>0?Infinity:null),avgWin,avgLoss};
+ return {total:ts.length,closed:c.length,wins:wins.length,losses:losses.length,even:even.length,open,pnl,grossWin,grossLoss,winRate:c.length?(wins.length/c.length*100):null,pf:grossLoss?grossWin/grossLoss:(grossWin>0?Infinity:null),avgWin,avgLoss};
 }
 function fillSelect(id,values,label){const el=$(id),old=el.value;el.innerHTML=`<option value="">${label}</option>`+values.map(v=>`<option value="${safe(v)}">${safe(v)}</option>`).join("");if(values.includes(old))el.value=old}
 function refresh(){
  const ts=filteredTrades(),s=stats(ts);
  $("netPnl").textContent=money(s.pnl);$("netPnl").className="stat-value "+(s.pnl>0?"positive":s.pnl<0?"negative":"");
  $("pnlFoot").textContent=`${s.closed} closed trade${s.closed===1?"":"s"}`;
+ $("grossProfit").textContent=money(s.grossWin);$("grossLoss").textContent=money(s.grossLoss);
  $("winRate").textContent=s.winRate===null?"—":s.winRate.toFixed(1)+"%";$("winFoot").textContent=`${s.wins} wins · ${s.losses} losses · ${s.even} breakeven`;
  $("totalTrades").textContent=s.total;$("closedFoot").textContent=`${s.closed} closed · ${s.open} open`;
  $("profitFactor").textContent=s.pf===null?"—":s.pf===Infinity?"∞":s.pf.toFixed(2);
@@ -38,7 +39,7 @@ function refresh(){
  $("winsCount").textContent=s.wins;$("lossesCount").textContent=s.losses;$("evenCount").textContent=s.even;$("openCount").textContent=s.open;
  $("donutPct").textContent=s.winRate===null?"—":Math.round(s.winRate)+"%";
  const pct=s.winRate||0;$("donut").style.background=`conic-gradient(var(--green) ${pct*3.6}deg, var(--red) ${pct*3.6}deg ${(s.wins+s.losses)?(s.wins+s.losses)/(s.closed||1)*360:0}deg, #354556 0deg)`;
- renderStrategies(ts);renderTrades(ts);renderInsight(ts);
+ renderStrategies(ts);renderTimeframes(ts);renderTrades(ts);renderInsight(ts);
 }
 function renderStrategies(ts){
  const map=new Map();
@@ -47,6 +48,15 @@ function renderStrategies(ts){
  $("scorecardCount").textContent=`${rows.length} strateg${rows.length===1?"y":"ies"}`;
  $("strategyRows").innerHTML=rows.length?rows.map(r=>`<tr><td><div class="strategy-name">${safe(r.name)}</div></td><td>${r.s.total}</td><td>${r.s.wins}</td><td>${r.s.winRate===null?"—":r.s.winRate.toFixed(1)+"%"}</td><td class="${r.s.pnl>0?"positive-text":r.s.pnl<0?"negative-text":"neutral-text"}">${money(r.s.pnl)}</td><td>${money(r.s.closed?r.s.pnl/r.s.closed:0)}</td></tr>`).join(""):`<tr><td colspan="6" class="empty-cell">Add trades to build your strategy report.</td></tr>`;
 }
+
+function renderTimeframes(ts){
+ const map=new Map();
+ ts.forEach(t=>{const name=(t.timeframe||"").trim()||"Not recorded";if(!map.has(name))map.set(name,[]);map.get(name).push(t)});
+ const rows=[...map.entries()].map(([name,list])=>({name,s:stats(list)})).sort((a,b)=>b.s.pnl-a.s.pnl);
+ $("timeframeCount").textContent=`${rows.length} timeframe${rows.length===1?"":"s"}`;
+ $("timeframeRows").innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${safe(r.name)}</strong></td><td>${r.s.total}</td><td>${r.s.wins}</td><td>${r.s.winRate===null?"—":r.s.winRate.toFixed(1)+"%"}</td><td class="${r.s.pnl>0?"positive-text":r.s.pnl<0?"negative-text":"neutral-text"}">${money(r.s.pnl)}</td><td>${money(r.s.closed?r.s.pnl/r.s.closed:0)}</td></tr>`).join(""):`<tr><td colspan="6" class="empty-cell">Assign a timeframe to trades to build this report.</td></tr>`;
+}
+
 function renderTrades(ts){
  $("tradeRows").innerHTML=ts.length?ts.map(t=>`<tr>
  <td>${safe(t.date||"—")}</td><td><strong>${safe(t.pair)}</strong></td>
@@ -205,5 +215,58 @@ $("importFile").addEventListener("change",async e=>{
   saveTrades();updateFilters();refresh();toast(`Imported ${added} trade${added===1?"":"s"}. Check imported rows for accuracy.`);
  }catch(err){alert("Import failed: "+err.message)}finally{e.target.value=""}
 });
-updateFilters();refresh();
+function isoDateLocal(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
+function mondayOf(d){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x}
+function addDays(d,n){const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()+n);return x}
+function prettyDate(s){const d=new Date(s+"T12:00:00");return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
+function weekTrades(start){const end=isoDateLocal(addDays(start,6)),from=isoDateLocal(start);return trades.filter(t=>t.date>=from&&t.date<=end)}
+function auditGroupRows(ts){
+ const groups=[];
+ ["Strategy","Timeframe"].forEach(type=>{
+  const map=new Map();ts.forEach(t=>{const raw=type==="Strategy"?t.strategy:t.timeframe;const name=(raw||"").trim()||(type==="Strategy"?"None / Manual":"Not recorded");if(!map.has(name))map.set(name,[]);map.get(name).push(t)});
+  [...map.entries()].forEach(([name,list])=>{const s=stats(list);if(s.closed)groups.push({type,name,s})});
+ });
+ return groups.sort((a,b)=>b.s.pnl-a.s.pnl);
+}
+function renderAudit(){
+ const input=$("auditWeekStart");if(!input.value){input.value=isoDateLocal(mondayOf(new Date()))}
+ const selected=new Date(input.value+"T12:00:00");const start=mondayOf(selected),prev=addDays(start,-7),cur=weekTrades(start),old=weekTrades(prev),cs=stats(cur),ps=stats(old);
+ const curEnd=isoDateLocal(addDays(start,6)),prevEnd=isoDateLocal(addDays(prev,6));
+ $("currentWeekLabel").textContent=`${prettyDate(isoDateLocal(start))} – ${prettyDate(curEnd)}`;
+ $("previousWeekLabel").textContent=`${prettyDate(isoDateLocal(prev))} – ${prettyDate(prevEnd)}`;
+ const setPeriod=(prefix,s)=>{
+  const pnl=$(prefix+"Pnl");pnl.textContent=money(s.pnl);pnl.className="audit-big-number "+(s.pnl>0?"positive-text":s.pnl<0?"negative-text":"");
+  $(prefix+"Meta").textContent=`${s.closed} closed trade${s.closed===1?"":"s"} · ${s.open} open`;
+  $(prefix+"WL").textContent=`${s.wins} / ${s.losses}`;
+  $(prefix+"WinRate").textContent=s.winRate===null?"—":s.winRate.toFixed(1)+"%";
+  $(prefix+"Gain").textContent=money(s.grossWin);$(prefix+"Loss").textContent=money(s.grossLoss);
+ };
+ setPeriod("auditCurrent",cs);setPeriod("auditPrevious",ps);
+ const delta=cs.pnl-ps.pnl,deltaEl=$("auditPnlChange");deltaEl.textContent=`Net P&L: ${delta>=0?"+":""}${money(delta)}`;deltaEl.className=delta>0?"positive-text":delta<0?"negative-text":"";
+ const tradeDelta=cs.closed-ps.closed;$("auditTradeChange").textContent=`Closed trades: ${tradeDelta>=0?"+":""}${tradeDelta}`;
+ const wrDelta=(cs.winRate??0)-(ps.winRate??0);$("auditWinRateChange").textContent=`Win rate: ${cs.winRate===null||ps.winRate===null?"—":`${wrDelta>=0?"+":""}${wrDelta.toFixed(1)} pts`}`;
+ let insight="No closed trades recorded for this audit week yet. Add your trades manually and the comparison will populate automatically.";
+ if(cs.closed||ps.closed){
+  const direction=delta>0?"improved":delta<0?"declined":"was unchanged";
+  insight=`Net P&L ${direction} by ${money(Math.abs(delta))} compared with the previous week. This week recorded ${cs.wins} wins, ${cs.losses} losses, and ${cs.even} breakeven trades. `;
+  if(cs.closed&&cs.winRate!==null)insight+=`Win rate: ${cs.winRate.toFixed(1)}%. `;
+  const candidates=auditGroupRows(cur).filter(r=>r.s.closed>=2);
+  if(candidates.length){const best=candidates[0];insight+=`Top current-week ${best.type.toLowerCase()} by net P&L: ${best.name} (${money(best.s.pnl)} across ${best.s.closed} closed trades). Treat small samples cautiously.`}
+  else insight+="Record more trades in each strategy and timeframe before drawing conclusions about what is working.";
+ }
+ $("auditInsight").textContent=insight;
+ const rows=auditGroupRows(cur);
+ $("auditBreakdownRows").innerHTML=rows.length?rows.map(r=>`<tr><td>${r.type}</td><td><strong>${safe(r.name)}</strong></td><td>${r.s.closed}</td><td>${r.s.wins}</td><td>${r.s.winRate===null?"—":r.s.winRate.toFixed(1)+"%"}</td><td class="${r.s.pnl>0?"positive-text":r.s.pnl<0?"negative-text":"neutral-text"}">${money(r.s.pnl)}</td><td>${money(r.s.pnl/r.s.closed)}</td></tr>`).join(""):`<tr><td colspan="7" class="empty-cell">No closed trades in this audit week yet.</td></tr>`;
+}
+$("auditWeekStart").value=isoDateLocal(mondayOf(new Date()));
+$("auditWeekStart").addEventListener("change",()=>{const d=new Date($("auditWeekStart").value+"T12:00:00");$("auditWeekStart").value=isoDateLocal(mondayOf(d));renderAudit()});
+$("exportAuditBtn").addEventListener("click",()=>{
+ const start=mondayOf(new Date($("auditWeekStart").value+"T12:00:00")),prev=addDays(start,-7),cur=weekTrades(start),old=weekTrades(prev);
+ const rows=[["Period","Start","End","Closed trades","Wins","Losses","Breakeven","Win rate","Total gained","Total lost","Net P&L"],["Current week",isoDateLocal(start),isoDateLocal(addDays(start,6)),...(()=>{const s=stats(cur);return [s.closed,s.wins,s.losses,s.even,s.winRate??"",s.grossWin,s.grossLoss,s.pnl]})()],["Previous week",isoDateLocal(prev),isoDateLocal(addDays(prev,6)),...(()=>{const s=stats(old);return [s.closed,s.wins,s.losses,s.even,s.winRate??"",s.grossWin,s.grossLoss,s.pnl]})()],[],["Current week breakdown","Name","Closed trades","Wins","Win rate","Net P&L","Average per trade"]];
+ auditGroupRows(cur).forEach(r=>rows.push([r.type,r.name,r.s.closed,r.s.wins,r.s.winRate??"",r.s.pnl,r.s.pnl/r.s.closed]));
+ const csv=rows.map(r=>r.map(csvCell).join(",")).join("\r\n"),blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`RBF_weekly_audit_${isoDateLocal(start)}.csv`;a.click();URL.revokeObjectURL(url);toast("Weekly audit CSV exported.");
+});
+$("printAuditBtn").addEventListener("click",()=>window.print());
+
+updateFilters();refresh();renderAudit();
 if("serviceWorker" in navigator && location.protocol!=="file:"){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
