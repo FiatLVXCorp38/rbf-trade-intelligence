@@ -103,12 +103,96 @@ function parseCSV(text){
  for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(quoted){if(c==='"'&&n==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===","){row.push(field);field=""}else if(c==="\n"){row.push(field.replace(/\r$/,""));rows.push(row);row=[];field=""}else field+=c}
  if(field.length||row.length){row.push(field.replace(/\r$/,""));rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()!==""));
 }
+function importOandaTransactions(rows, headers){
+ const col=name=>headers.indexOf(name);
+ const required=["TICKET","TRANSACTION DATE","TRANSACTION TYPE","DETAILS","INSTRUMENT","PRICE","UNITS","DIRECTION","PL"];
+ const missing=required.filter(h=>col(h)<0);
+ if(missing.length)throw Error("OANDA export is missing columns: "+missing.join(", "));
+ const val=(r,name)=>{const i=col(name);return i<0?"":String(r[i]??"").trim()};
+ const num=(r,name)=>{const x=Number(val(r,name).replace(/[$,]/g,""));return Number.isFinite(x)?x:0};
+ const fillRows=rows.slice(1).filter(r=>val(r,"TRANSACTION TYPE")==="ORDER_FILL"&&val(r,"INSTRUMENT"));
+ const queue=new Map(), created=[];
+ const key=(pair,dir)=>pair+"|"+dir;
+ const sorted=fillRows.sort((a,b)=>val(a,"TRANSACTION DATE").localeCompare(val(b,"TRANSACTION DATE")));
+ let closeCount=0,openCount=0,unmatchedClose=0,duplicates=0;
+ const existingTickets=new Set(trades.map(t=>t.sourceTicket).filter(Boolean));
+ for(const r of sorted){
+   const detail=val(r,"DETAILS"),pair=val(r,"INSTRUMENT").toUpperCase(),dir=val(r,"DIRECTION");
+   const units=Math.abs(num(r,"UNITS")),price=num(r,"PRICE"),ticket=val(r,"TICKET");
+   if(!pair||!units||!dir)continue;
+   if(detail==="MARKET_ORDER"){
+     const k=key(pair,dir);if(!queue.has(k))queue.set(k,[]);
+     queue.get(k).push({pair,dir,units,remaining:units,price,date:val(r,"TRANSACTION DATE").slice(0,10),ticket});
+     continue;
+   }
+   // OANDA close fills: stop-loss, take-profit, trailing stop, or explicit market close.
+   const closeTypes=["STOP_LOSS_ORDER","TAKE_PROFIT_ORDER","TRAILING_STOP_LOSS_ORDER","MARKET_ORDER_TRADE_CLOSE"];
+   if(!closeTypes.includes(detail))continue;
+   if(existingTickets.has(ticket)){duplicates++;continue}
+   const openDir=dir==="Sell"?"Buy":"Sell",k=key(pair,openDir),lots=queue.get(k)||[];
+   let remaining=units,weightedEntry=0,matchedUnits=0,openedAt="",openingTickets=[];
+   while(remaining>1e-8&&lots.length){
+     const lot=lots[0],take=Math.min(remaining,lot.remaining);
+     weightedEntry+=lot.price*take;matchedUnits+=take;remaining-=take;lot.remaining-=take;
+     if(!openedAt||lot.date<openedAt)openedAt=lot.date;
+     openingTickets.push(lot.ticket);
+     if(lot.remaining<1e-8)lots.shift();
+   }
+   if(remaining>1e-8)unmatchedClose++;
+   if(!matchedUnits)continue;
+   const pl=num(r,"PL"),fees=num(r,"FINANCING")+num(r,"COMMISSION")+num(r,"CONVERSION FEE");
+   const net=pl+fees;
+   const result=net>0.0000001?"Win":net< -0.0000001?"Loss":"Breakeven";
+   const closeDate=val(r,"TRANSACTION DATE").slice(0,10);
+   const direction=openDir==="Buy"?"Long":"Short";
+   const closeType=detail.replaceAll("_"," ").toLowerCase();
+   created.push({
+     id:(crypto.randomUUID?.()||("oanda-"+ticket)),sourceTicket:ticket,
+     date:closeDate,pair,direction,strategy:"",timeframe:"",condition:"",
+     entry:(weightedEntry/matchedUnits).toString(),exit:price.toString(),
+     stop:"",target:"",size:matchedUnits.toString(),result,pnl:net,
+     notes:`Imported from OANDA. Opened: ${openedAt||"date unavailable"}. Exit: ${closeType}. OANDA ticket: ${ticket}. Matched opening ticket(s): ${openingTickets.join("; ")}. PL ${pl.toFixed(4)}; financing ${num(r,"FINANCING").toFixed(4)}; commission ${num(r,"COMMISSION").toFixed(4)}; conversion fee ${num(r,"CONVERSION FEE").toFixed(4)}.`,
+     createdAt:Date.now()+created.length
+   });
+   closeCount++;
+ }
+ // Retain unmatched opening fills as currently-open positions; no realized P&L is assigned.
+ for(const lots of queue.values()){
+   for(const lot of lots){
+     if(lot.remaining>1e-8&&!existingTickets.has(lot.ticket)){
+       created.push({id:crypto.randomUUID?.()||("oanda-open-"+lot.ticket),sourceTicket:lot.ticket,
+        date:lot.date,pair:lot.pair,direction:lot.dir==="Buy"?"Long":"Short",
+        strategy:"",timeframe:"",condition:"",entry:lot.price.toString(),exit:"",
+        stop:"",target:"",size:lot.remaining.toString(),result:"Open",pnl:0,
+        notes:`Imported from OANDA as an open position. Opening ticket: ${lot.ticket}.`,
+        createdAt:Date.now()+created.length});
+       openCount++;
+     }
+   }
+ }
+ trades.push(...created);
+ return {created:created.length,closed:closeCount,open:openCount,unmatchedClose,duplicates};
+}
 $("importFile").addEventListener("change",async e=>{
  const file=e.target.files[0];if(!file)return;
- try{const rows=parseCSV(await file.text());if(rows.length<2)throw Error("CSV has no trade rows.");
-  const headers=rows[0].map(h=>h.trim().toLowerCase().replace(/[\s_-]+/g,""));
+ try{
+  const rows=parseCSV(await file.text());if(rows.length<2)throw Error("CSV has no transaction rows.");
+  const headers=rows[0].map(h=>h.trim().toUpperCase());
+  const isOanda=["TICKET","TRANSACTION TYPE","DETAILS","INSTRUMENT","PL"].every(h=>headers.includes(h));
+  if(isOanda){
+    const report=importOandaTransactions(rows,headers);
+    saveTrades();updateFilters();refresh();
+    toast(`OANDA import: ${report.closed} closed, ${report.open} open trades.`);
+    let msg=`Imported ${report.created} OANDA trade records.\n\nClosed trades: ${report.closed}\nOpen positions: ${report.open}`;
+    if(report.unmatchedClose)msg+=`\nClosing fills without a fully matched opening quantity: ${report.unmatchedClose}`;
+    if(report.duplicates)msg+=`\nDuplicate tickets skipped: ${report.duplicates}`;
+    msg+="\n\nImported trades have no indicator/strategy label yet. You can edit each trade and assign one if you know which system generated it.";
+    alert(msg);
+    return;
+  }
+  const normalized=rows[0].map(h=>h.trim().toLowerCase().replace(/[\s_-]+/g,""));
   const aliases={date:["date","tradedate","opentime","time"],pair:["pair","symbol","instrument","currency"],direction:["direction","side","type"],strategy:["strategy","indicator","system"],timeframe:["timeframe","tf"],condition:["condition","marketcondition"],entry:["entry","entryprice","openprice"],exit:["exit","exitprice","closeprice"],stop:["stop","stoploss","sl"],target:["target","takeprofit","tp"],size:["size","lots","units","quantity"],result:["result","outcome","status"],pnl:["pnl","profit","netpnl","realizedpnl"],notes:["notes","comment","comments"]};
-  const idx={};Object.entries(aliases).forEach(([k,arr])=>idx[k]=headers.findIndex(h=>arr.includes(h)));
+  const idx={};Object.entries(aliases).forEach(([k,arr])=>idx[k]=normalized.findIndex(h=>arr.includes(h)));
   if(idx.pair<0)throw Error("Could not find a pair/symbol column.");
   let added=0;rows.slice(1).forEach(r=>{
    const get=k=>idx[k]>=0?(r[idx[k]]||"").trim():"";

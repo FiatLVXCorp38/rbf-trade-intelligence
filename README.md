@@ -10,14 +10,14 @@ A free, installable web app for recording trades and analyzing performance by in
 - Strategy scorecard: trade count, wins, win rate, net P&L, average result per closed trade
 - Filters for date range, pair, strategy, market condition, and result
 - Trade notes and review fields
-- CSV import and export
+- CSV import and export, including OANDA transaction-history exports (automatically pairs opening and closing fills)
 - Local browser storage
 - Installable PWA shell and basic offline access
 
 ### Important notes
 - Trade records are saved in the browser on the device where they are entered. This version has no account, cloud sync, or automatic backup.
 - Export your CSV regularly. Clearing browser data can erase locally stored trades.
-- CSV import is a general-purpose importer. It looks for common column names such as `date`, `pair`/`symbol`, `direction`/`side`, `strategy`/`indicator`, `result`, and `pnl`/`profit`. Review imported records for accuracy.
+- OANDA transaction-history CSV imports are recognized by their transaction columns. RBF filters to actual order fills, matches opening and closing fills by instrument and direction using FIFO, calculates realized result from PL plus financing, commission, and conversion fee, and keeps unmatched opening quantities as Open positions. Review imported records for accuracy. Imported trades have no strategy label because OANDA's transaction export does not identify which of your custom indicators generated a trade.
 - Enter actual realized P&L. RBF intentionally does not estimate Forex P&L from entry/exit prices and lot size because pip value varies by instrument and account currency.
 - The app does not connect to OANDA or TradingView and does not place trades.
 - No closed-app push alerts are included.
