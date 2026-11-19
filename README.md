@@ -1,5 +1,5 @@
 # RBF — Ranging Bull Financial
-## Trade Intelligence & Performance Analytics · Version 1.3
+## Trade Intelligence & Performance Analytics · Version 1.7
 
 A free, installable web app for recording trades and analyzing performance by indicator/strategy, currency pair, timeframe, and market condition.
 
@@ -13,6 +13,13 @@ A free, installable web app for recording trades and analyzing performance by in
 - CSV import and export, including OANDA transaction-history exports (automatically pairs opening and closing fills)
 - Local browser storage
 - Installable PWA shell and basic offline access
+
+### Version 1.7 — Trade screenshots
+- Attach up to 12 chart screenshots to each individual trade, including open and closed trades.
+- View images as thumbnails and click to enlarge; remove attachments while editing a trade.
+- Images are stored as Blobs in browser IndexedDB, separately from trade records in localStorage. This avoids putting large image data into the trade JSON.
+- Screenshots remain on the same browser profile/device and are not synced to GitHub or another device. Export/backup of screenshots is not included in this version.
+- Images over 15 MB each are skipped. Use common image formats such as PNG, JPG, or WebP.
 
 ### Important notes
 - Trade records are saved in the browser on the device where they are entered. This version has no account, cloud sync, or automatic backup.

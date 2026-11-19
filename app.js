@@ -3,6 +3,43 @@ const JOURNAL_KEY = "rbf_trade_intelligence_daily_journal_v1";
 const $ = id => document.getElementById(id);
 let trades = loadTrades();
 let toastTimer;
+const IMAGE_DB_NAME = "rbf_trade_intelligence_images_v1";
+const IMAGE_STORE = "tradeImages";
+let imageDbPromise;
+let pendingTradeImages = [];
+let removedTradeImageIds = new Set();
+let galleryObjectUrls = [];
+let currentTradeImageRecords = [];
+function openImageDb(){
+ if(imageDbPromise)return imageDbPromise;
+ imageDbPromise=new Promise((resolve,reject)=>{
+  if(!("indexedDB" in window)){reject(new Error("This browser does not support local image storage."));return}
+  const req=indexedDB.open(IMAGE_DB_NAME,1);
+  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(IMAGE_STORE)){const store=db.createObjectStore(IMAGE_STORE,{keyPath:"id"});store.createIndex("tradeId","tradeId",{unique:false})}};
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error("Could not open image storage."));
+ });
+ return imageDbPromise;
+}
+async function imageTransaction(mode,work){const db=await openImageDb();return new Promise((resolve,reject)=>{const tx=db.transaction(IMAGE_STORE,mode),store=tx.objectStore(IMAGE_STORE);let result;try{result=work(store)}catch(err){reject(err);return}tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error||new Error("Image storage failed."));tx.onabort=()=>reject(tx.error||new Error("Image storage was interrupted."))})}
+async function getTradeImages(tradeId){const db=await openImageDb();return new Promise((resolve,reject)=>{const tx=db.transaction(IMAGE_STORE,"readonly"),req=tx.objectStore(IMAGE_STORE).index("tradeId").getAll(tradeId);req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error)})}
+function clearGalleryUrls(){galleryObjectUrls.forEach(URL.revokeObjectURL);galleryObjectUrls=[]}
+function imageUrl(blob){const url=URL.createObjectURL(blob);galleryObjectUrls.push(url);return url}
+async function renderTradeScreenshotGallery(){
+ clearGalleryUrls();const tradeId=$("tradeId").value;let saved=[];
+ try{if(tradeId)saved=await getTradeImages(tradeId)}catch(err){$("tradeScreenshotGallery").innerHTML='<span class="screenshot-empty">Image storage is unavailable in this browser.</span>';return}
+ currentTradeImageRecords=saved;
+ const cards=[];
+ saved.filter(x=>!removedTradeImageIds.has(x.id)).forEach(x=>cards.push(`<div class="screenshot-thumb"><button type="button" class="screenshot-image" data-view-image="${safe(x.id)}"><img src="${imageUrl(x.blob)}" alt="${safe(x.name)}"></button><button type="button" class="screenshot-remove" data-remove-saved-image="${safe(x.id)}" aria-label="Remove ${safe(x.name)}">×</button><small>${safe(x.name)}</small></div>`));
+ pendingTradeImages.forEach((x,i)=>cards.push(`<div class="screenshot-thumb pending"><button type="button" class="screenshot-image" data-view-pending-image="${i}"><img src="${imageUrl(x)}" alt="New screenshot"></button><button type="button" class="screenshot-remove" data-remove-pending-image="${i}" aria-label="Remove new screenshot">×</button><small>New image ${i+1}</small></div>`));
+ $("tradeScreenshotGallery").innerHTML=cards.length?cards.join(""):'<span class="screenshot-empty">No screenshots attached to this trade yet.</span>';
+}
+async function commitTradeImages(tradeId){
+ for(const id of removedTradeImageIds)await imageTransaction("readwrite",store=>store.delete(id));
+ for(const file of pendingTradeImages){const record={id:crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`,tradeId,name:file.name||"Trade screenshot",type:file.type||"image/*",size:file.size,createdAt:Date.now(),blob:file};await imageTransaction("readwrite",store=>store.put(record))}
+ pendingTradeImages=[];removedTradeImageIds.clear();
+}
+async function deleteTradeImages(tradeId){const images=await getTradeImages(tradeId);for(const item of images)await imageTransaction("readwrite",store=>store.delete(item.id))}
+
 
 function loadTrades(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")}catch{return []}}
 function saveTrades(){localStorage.setItem(STORAGE_KEY,JSON.stringify(trades))}
@@ -78,30 +115,49 @@ function renderInsight(ts){
 }
 function updateFilters(){fillSelect("pairFilter",[...new Set(trades.map(t=>t.pair).filter(Boolean))].sort(),"All pairs");fillSelect("strategyFilter",[...new Set(trades.map(t=>(t.strategy||"").trim()||"None / Manual"))].sort(),"All strategies")}
 function openModal(t){
+ pendingTradeImages=[];removedTradeImageIds.clear();clearGalleryUrls();
  $("tradeForm").reset();$("tradeId").value=t?.id||"";$("modalTitle").textContent=t?"Edit trade":"Add a trade";
  $("tradeDate").value=t?.date||dateNow();$("pair").value=t?.pair||"";$("direction").value=t?.direction||"Long";$("result").value=t?.result||"Win";
  $("strategy").value=t?.strategy||"";$("timeframe").value=t?.timeframe||"";$("condition").value=t?.condition||"";
  ["entry","exit","stop","target","size","pnl","notes"].forEach(k=>$(k).value=t?.[k]??"");
  $("pnl").placeholder=t?.result==="Open"?"Optional current unrealized P&L":"Enter actual realized gain/loss";
- $("tradeModal").hidden=false;document.body.style.overflow="hidden";$("pair").focus();
+ $("tradeModal").hidden=false;document.body.style.overflow="hidden";renderTradeScreenshotGallery();$("pair").focus();
 }
-function closeModal(){$("tradeModal").hidden=true;document.body.style.overflow=""}
+function closeModal(){$("tradeModal").hidden=true;document.body.style.overflow="";pendingTradeImages=[];removedTradeImageIds.clear();clearGalleryUrls()}
 $("newTradeBtn").addEventListener("click",()=>openModal());$("closeModal").addEventListener("click",closeModal);$("cancelTrade").addEventListener("click",closeModal);
 $("tradeModal").addEventListener("click",e=>{if(e.target===$("tradeModal"))closeModal()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("tradeModal").hidden)closeModal()});
-$("tradeForm").addEventListener("submit",e=>{
+$("tradeForm").addEventListener("submit",async e=>{
  e.preventDefault();const id=$("tradeId").value||crypto.randomUUID?.()||String(Date.now());
  const idx=trades.findIndex(x=>x.id===id);
  const previous=idx>=0?trades[idx]:null;
  const t={...(previous||{}),id,date:$("tradeDate").value,pair:$("pair").value.trim().toUpperCase().replace(/\s/g,""),direction:$("direction").value,result:$("result").value,strategy:$("strategy").value.trim(),timeframe:$("timeframe").value,condition:$("condition").value,entry:$("entry").value,exit:$("exit").value,stop:$("stop").value,target:$("target").value,size:$("size").value,pnl:Number($("pnl").value)||0,notes:$("notes").value.trim(),createdAt:previous?.createdAt||Date.now(),updatedAt:Date.now()};
  if(!t.pair){toast("Enter a currency pair.");return}
  if(idx>=0)trades[idx]=t;else trades.push(t);
- saveTrades();closeModal();updateFilters();refresh();toast(idx>=0?"Trade updated.":"Trade saved.");
+ saveTrades();
+ try{await commitTradeImages(id)}catch(err){toast("Trade saved, but screenshot storage failed. Try smaller images.");console.error(err)}
+ closeModal();updateFilters();refresh();if(activeJournalDate)renderJournalSummary(activeJournalDate);toast(idx>=0?"Trade updated.":"Trade saved.");
 });
+$("tradeScreenshots").addEventListener("change",async e=>{
+ const files=[...e.target.files||[]];e.target.value="";if(!files.length)return;
+ const valid=files.filter(f=>f.type.startsWith("image/"));if(valid.length!==files.length)toast("Only image files can be attached.");
+ let current=currentTradeImageRecords.filter(x=>!removedTradeImageIds.has(x.id)).length+pendingTradeImages.length;
+ for(const file of valid){if(file.size>15*1024*1024){toast(`${file.name} is over 15 MB and was skipped.`);continue}if(current>=12){toast("Maximum 12 screenshots per trade.");break}pendingTradeImages.push(file);current++}
+ renderTradeScreenshotGallery();
+});
+$("tradeScreenshotGallery").addEventListener("click",e=>{
+ const removeSaved=e.target.closest("[data-remove-saved-image]"),removePending=e.target.closest("[data-remove-pending-image]"),view=e.target.closest("[data-view-image]"),viewPending=e.target.closest("[data-view-pending-image]");
+ if(removeSaved){removedTradeImageIds.add(removeSaved.dataset.removeSavedImage);renderTradeScreenshotGallery();return}
+ if(removePending){pendingTradeImages.splice(Number(removePending.dataset.removePendingImage),1);renderTradeScreenshotGallery();return}
+ let src="";if(view){const item=currentTradeImageRecords.find(x=>x.id===view.dataset.viewImage);if(item&&!removedTradeImageIds.has(item.id))src=imageUrl(item.blob)}else if(viewPending){const item=pendingTradeImages[Number(viewPending.dataset.viewPendingImage)];if(item)src=imageUrl(item)}
+ if(src){$("lightboxImage").src=src;$("imageLightbox").hidden=false}
+});
+$("closeLightbox").addEventListener("click",()=>{$("imageLightbox").hidden=true;$("lightboxImage").removeAttribute("src")});
+$("imageLightbox").addEventListener("click",e=>{if(e.target===$("imageLightbox")){$("imageLightbox").hidden=true;$("lightboxImage").removeAttribute("src")}});
 $("tradeRows").addEventListener("click",e=>{
  const edit=e.target.closest("[data-edit]"),del=e.target.closest("[data-delete]");
  if(edit){const t=trades.find(x=>x.id===edit.dataset.edit);if(t)openModal(t)}
- if(del){const t=trades.find(x=>x.id===del.dataset.delete);if(t&&confirm(`Delete the ${t.pair} trade from ${t.date}?`)){trades=trades.filter(x=>x.id!==t.id);saveTrades();updateFilters();refresh();toast("Trade deleted.")}}
+ if(del){const t=trades.find(x=>x.id===del.dataset.delete);if(t&&confirm(`Delete the ${t.pair} trade from ${t.date}?`)){trades=trades.filter(x=>x.id!==t.id);saveTrades();deleteTradeImages(t.id).catch(console.error);updateFilters();refresh();if(activeJournalDate)renderJournalSummary(activeJournalDate);toast("Trade deleted.")}}
 });
 ["fromDate","toDate","pairFilter","strategyFilter","conditionFilter","resultFilter","searchTrades"].forEach(id=>$(id).addEventListener(id==="searchTrades"?"input":"change",refresh));
 $("clearFilters").addEventListener("click",()=>{["fromDate","toDate","pairFilter","strategyFilter","conditionFilter","resultFilter","searchTrades"].forEach(id=>$(id).value="");refresh()});
@@ -111,7 +167,12 @@ $("clearAllTradesBtn").addEventListener("click",()=>{
  const count=trades.length;
  const approved=confirm(`CLEAR ALL ${count} TRADES?\n\nThis permanently removes every trade record from this browser, including trades hidden by filters. This cannot be undone.\n\nExport your CSV first if you may need these records later.`);
  if(!approved)return;
- trades=[];saveTrades();// Daily journal: stored separately so trade history from earlier versions is untouched.
+ trades=[];saveTrades();
+ openImageDb().then(db=>new Promise((resolve,reject)=>{const tx=db.transaction(IMAGE_STORE,"readwrite");tx.objectStore(IMAGE_STORE).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})).catch(console.error);
+ updateFilters();refresh();renderAudit();if(activeJournalDate)renderJournalSummary(activeJournalDate);toast(`${count} trade records cleared.`);
+});
+
+// Daily journal uses its own storage so trade history and journal entries remain independent.
 let journalEntries = loadJournal();
 let activeJournalDate = "";
 function loadJournal(){try{return JSON.parse(localStorage.getItem(JOURNAL_KEY)||"{}")}catch{return {}}}
@@ -146,9 +207,6 @@ $("journalDate").addEventListener("change",()=>{const d=$("journalDate").value;i
 $("deleteJournalBtn").addEventListener("click",()=>{if(!activeJournalDate||!journalEntries[activeJournalDate])return;if(!confirm(`Delete the journal entry for ${activeJournalDate}? This will not delete any trades.`))return;delete journalEntries[activeJournalDate];saveJournalStore();openJournalDate(journalDateNow());toast("Journal entry deleted.")});
 openJournalDate(journalDateNow());
 
-updateFilters();refresh();renderAudit();
- toast(`${count} trade records cleared.`);
-});
 function csvCell(v){const s=String(v??"");return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 const columns=["date","pair","direction","strategy","timeframe","condition","entry","exit","stop","target","size","result","pnl","notes"];
 $("exportBtn").addEventListener("click",()=>{
